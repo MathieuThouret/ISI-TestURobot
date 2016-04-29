@@ -1,6 +1,9 @@
 package robot;
 
 import java.util.ArrayList;
+import java.util.Random;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static robot.Direction.*;
 import static robot.Instruction.*;
@@ -11,6 +14,8 @@ public class Robot {
     private Direction direction;
     private boolean isLanded;
     private RoadBook roadBook;
+    private Battery battery;
+    private LandSensor landSensor;
     /**
      * Energie ideale consommee pour la realisation d'une action. 
      */
@@ -23,6 +28,24 @@ public class Robot {
     public Robot(double energyConsumption) {
         isLanded = false;
         this.energyConsumption = energyConsumption;
+        this.battery=new Battery();
+        this.landSensor=new LandSensor(new Random());
+    }
+
+    public Battery getBattery() {
+        return battery;
+    }
+
+    public void setBattery(Battery battery) {
+        this.battery = battery;
+    }
+
+    public LandSensor getLandSensor() {
+        return landSensor;
+    }
+
+    public void setLandSensor(LandSensor landSensor) {
+        this.landSensor = landSensor;
     }
 
     public void land(Coordinates landPosition) {
@@ -46,9 +69,18 @@ public class Robot {
         return direction;
     }
 
-    public void moveForward() throws UnlandedRobotException {
+    public void moveForward() throws UnlandedRobotException, InsufficientChargeException {
         if (!isLanded) throw new UnlandedRobotException();
-        position = MapTools.nextForwardPosition(position, direction);
+        Coordinates nextPosition = MapTools.nextForwardPosition(position, direction);
+        double energyConsumptionModulee;
+        energyConsumptionModulee = landSensor.getPointToPointEnergyCoefficient(position, nextPosition)*energyConsumption;
+        try {
+            battery.use(battery.getChargeLevel() - energyConsumptionModulee);
+        } catch (InsufficientChargeException ex) {
+            Logger.getLogger(Robot.class.getName()).log(Level.SEVERE, null, ex);
+            throw new InsufficientChargeException();
+        }
+        position=nextPosition;
     }
 
     public void moveBackward() throws UnlandedRobotException {
@@ -70,7 +102,7 @@ public class Robot {
         this.roadBook = roadBook;
     }
 
-    public void letsGo() throws UnlandedRobotException {
+    public void letsGo() throws UnlandedRobotException, InsufficientChargeException {
         while (roadBook.hasInstruction()) {
             Instruction nextInstruction = roadBook.next();
             if (nextInstruction == FORWARD) moveForward();
@@ -80,7 +112,7 @@ public class Robot {
         }
     }
 
-    public void moveTo(Coordinates destination) throws UnlandedRobotException {
+    public void moveTo(Coordinates destination) throws UnlandedRobotException, InsufficientChargeException {
         if (!isLanded) throw new UnlandedRobotException();
         RoadBook book = RoadBookCalculator.calculateRoadBook(direction, position, destination, new ArrayList<Instruction>());
         setRoadBook(book);

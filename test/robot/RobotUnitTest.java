@@ -4,6 +4,8 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 import java.util.Arrays;
+import static org.mockito.Matchers.anyDouble;
+import org.mockito.Mockito;
 
 
 import static robot.Direction.WEST;
@@ -27,7 +29,7 @@ public class RobotUnitTest {
     }
 
     @Test
-    public void testMoveForward() throws UnlandedRobotException {
+    public void testMoveForward() throws UnlandedRobotException, InsufficientChargeException {
         Robot robot = new Robot();
         robot.land(new Coordinates(3, 0));
         int currentXposition = robot.getXposition();
@@ -66,12 +68,22 @@ public class RobotUnitTest {
     }
 
     @Test
-    public void testFollowInstruction() throws UnlandedRobotException {
+    public void testFollowInstruction() throws UnlandedRobotException, InsufficientChargeException {
         Robot robot = new Robot();
         robot.land(new Coordinates(5, 7));
         robot.setRoadBook(new RoadBook(Arrays.asList(Instruction.FORWARD, Instruction.FORWARD, Instruction.TURNLEFT, Instruction.FORWARD)));
         robot.letsGo();
         assertEquals(4, robot.getXposition());
         assertEquals(9, robot.getYposition());
+    }
+    
+    @Test (expected = InsufficientChargeException.class)
+    public void testNewMoveForwardFail() throws InsufficientChargeException, UnlandedRobotException {
+        Robot robot = new Robot();
+        robot.land(new Coordinates(5, 7));        
+        Battery mockBattery = Mockito.mock(Battery.class);
+        Mockito.doThrow(InsufficientChargeException.class).when(mockBattery).use(anyDouble());
+        robot.setBattery(mockBattery);
+        robot.moveForward();
     }
 }
